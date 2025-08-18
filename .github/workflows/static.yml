@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>プログラム → 16進数 変換ツール（CSV対応・オフラインOK）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #f7f7fb;
+      --card: #ffffff;
+      --text: #222;
+      --muted: #666;
+      --primary: #2563eb;
+      --border: #e5e7eb;
+      --ok: #16a34a;
+      --warn: #b45309;
+      --error: #dc2626;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      padding: 24px;
+    }
+    .container {
+      width: 100%;
+      max-width: 980px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.04);
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.5rem;
+    }
+    .subtitle {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    @media (min-width: 840px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      background: #fcfcff;
+      text-align: center;
+      transition: 0.2s ease;
+    }
+    .dropzone.dragover {
+      background: #eef2ff;
+      border-color: var(--primary);
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .row > * { flex: none; }
+    input[type="file"] {
+      display: none;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.15s ease;
+      font-size: 0.95rem;
+    }
+    .btn.primary {
+      background: var(--primary);
+      color: white;
+      border-color: transparent;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .hint {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 6px;
+    }
+    .status {
+      font-size: 0.92rem;
+      margin-top: 8px;
+    }
+    .status.ok { color: var(--ok); }
+    .status.warn { color: var(--warn); }
+    .status.error { color: var(--error); }
+    .search {
+      display: grid;
+      gap: 8px;
+    }
+    .search input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 1rem;
+      outline: none;
+    }
+    .result {
+      margin-top: 4px;
+      padding: 10px 12px;
+      background: #f1f5f9;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      word-break: break-all;
+    }
+    .tablewrap {
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: white;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    thead th {
+      position: sticky; top: 0;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      padding: 10px;
+    }
+    tbody td {
+      border-bottom: 1px solid var(--border);
+      padding: 8px 10px;
+    }
+    .muted { color: var(--muted); }
+    .pill {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: 6px;
+    }
+    footer {
+      margin-top: 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>プログラム → 16進数 変換ツール</h1>
+      <p class="subtitle">Excelのデータを <b>CSV(UTF-8)</b> で保存して読み込みます。ヘッダー名は <b>「プログラム」(H列)</b> と <b>「16進数」(B列)</b> を使います。</p>
+
+      <div class="grid">
+        <div>
+          <div id="drop" class="dropzone">
+            <p style="margin:0 0 8px;">ここに <b>CSVファイル</b> をドラッグ＆ドロップ</p>
+            <div class="row" style="justify-content:center;">
+              <label class="btn" for="file">ファイルを選択…</label>
+              <input id="file" type="file" accept=".csv" />
+              <button id="demoBtn" class="btn">サンプル読み込み</button>
+            </div>
+            <div class="hint">Excel: [ファイル]→[名前を付けて保存]→[CSV UTF-8(コンマ区切り)(*.csv)] を選択して保存</div>
+            <div id="status" class="status"></div>
+          </div>
+
+          <div style="margin-top:16px;" class="search">
+            <label for="q">プログラム名で検索</label>
+            <input id="q" list="programList" type="text" placeholder="例: プログラム名を入力" autocomplete="off" />
+            <datalist id="programList"></datalist>
+            <div class="result" id="result" style="display:none;">
+              <span id="hexText"></span>
+              <button id="copyBtn" class="btn">コピー</button>
+            </div>
+            <div class="hint">完全一致でヒットします。部分一致や前方一致の場合は下の一覧で確認してください。</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="tablewrap">
+            <table id="tbl">
+              <thead>
+                <tr>
+                  <th>プログラム</th>
+                  <th>16進数</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="hint" id="summary" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+    <footer>オフラインで動作します。CSVはブラウザ内でのみ処理され、サーバーへ送信されません。</footer>
+  </div>
+
+  <script>
+    // --- 便利関数：クリップボード ---
+    async function copy(text) {
+      try { await navigator.clipboard.writeText(text); return true; }
+      catch { return false; }
+    }
+
+    // --- CSVパーサ（クォート/改行対応の軽量実装）---
+    function parseCSV(csvText) {
+      const rows = [];
+      let cur = '', inQuotes = false, field = '', row = [];
+      for (let i = 0; i < csvText.length; i++) {
+        const c = csvText[i];
+        const next = csvText[i+1];
+        if (inQuotes) {
+          if (c === '"' && next === '"') { field += '"'; i++; }
+          else if (c === '"') { inQuotes = false; }
+          else { field += c; }
+        } else {
+          if (c === '"') { inQuotes = true; }
+          else if (c === ',') { row.push(field); field = ''; }
+          else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+          else if (c === '\r') {
+            // ignore (CRLF対応)。\r\n の場合、\nで行確定。
+          } else { field += c; }
+        }
+      }
+      // 最終フィールド
+      if (field !== '' || row.length) { row.push(field); rows.push(row); }
+      return rows;
+    }
+
+    // --- グローバル状態 ---
+    let mapping = new Map(); // プログラム -> 16進数
+    let programs = [];       // プログラム名配列（ソート済）
+
+    // --- CSVからマッピングを構築 ---
+    function buildMappingFromCSV(text) {
+      const rows = parseCSV(text);
+      if (rows.length === 0) throw new Error('CSVが空です。');
+
+      // ヘッダー行を探す
+      const header = rows[0].map(h => h.trim());
+      const idxProg = header.indexOf('プログラム');
+      const idxHex  = header.indexOf('16進数');
+      if (idxProg === -1 || idxHex === -1) {
+        throw new Error('ヘッダーが見つかりません。「プログラム」「16進数」という列名が必要です。');
+      }
+
+      const m = new Map();
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length === 0) continue;
+        const prog = (row[idxProg] || '').trim();
+        const hex  = (row[idxHex]  || '').trim();
+        if (!prog) continue;
+        // 同じプログラム名が複数行ある場合は最後の値を優先
+        m.set(prog, hex);
+      }
+      mapping = m;
+      programs = Array.from(mapping.keys()).sort((a,b)=>a.localeCompare(b,'ja'));
+    }
+
+    // --- UI反映 ---
+    function render() {
+      // datalist
+      const dl = document.getElementById('programList');
+      dl.innerHTML = '';
+      for (const name of programs) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        dl.appendChild(opt);
+      }
+
+      // table
+      const tbody = document.querySelector('#tbl tbody');
+      tbody.innerHTML = '';
+      for (const name of programs) {
+        const tr = document.createElement('tr');
+        const td1 = document.createElement('td');
+        const td2 = document.createElement('td');
+        td1.textContent = name;
+        td2.textContent = mapping.get(name) ?? '';
+        tr.appendChild(td1); tr.appendChild(td2);
+        tbody.appendChild(tr);
+      }
+
+      // summary
+      const s = document.getElementById('summary');
+      s.innerHTML = `読み込み済み：<b>${programs.length}</b>件 <span class="pill">重複は最後の値を採用</span>`;
+    }
+
+    // --- 検索 ---
+    function lookup() {
+      const q = document.getElementById('q').value.trim();
+      const resultBox = document.getElementById('result');
+      const hexText = document.getElementById('hexText');
+      const copyBtn = document.getElementById('copyBtn');
+      if (!q) { resultBox.style.display = 'none'; return; }
+      const hex = mapping.get(q);
+      if (hex !== undefined) {
+        hexText.textContent = `対応する16進数：${hex || '(空欄)'}`;
+        resultBox.style.display = '';
+        copyBtn.onclick = async () => {
+          const ok = await copy(hex);
+          copyBtn.textContent = ok ? 'コピーしました' : 'コピー失敗';
+          setTimeout(()=>copyBtn.textContent='コピー', 1200);
+        };
+      } else {
+        hexText.textContent = '対応が見つかりません。';
+        resultBox.style.display = '';
+        copyBtn.onclick = null;
+      }
+    }
+
+    // --- ファイル読込（UTF-8優先 / 失敗時Shift_JISトライ） ---
+    function readCSVFile(file) {
+      const status = document.getElementById('status');
+      const reader = new FileReader();
+      reader.onerror = () => status.innerHTML = '<span class="status error">読み込みに失敗しました。</span>';
+      reader.onload = () => {
+        try {
+          const text = reader.result;
+          buildMappingFromCSV(text);
+          render();
+          status.innerHTML = '<span class="status ok">読み込み完了！検索ボックスに入力してみてください。</span>';
+        } catch (e) {
+          // Shift_JIS再読込を試す
+          const reader2 = new FileReader();
+          reader2.onload = () => {
+            try {
+              const text2 = reader2.result;
+              buildMappingFromCSV(text2);
+              render();
+              status.innerHTML = '<span class="status ok">Shift_JISで読み込み完了！</span>';
+            } catch (e2) {
+              status.innerHTML = '<span class="status error">' + e2.message + '</span>';
+            }
+          };
+          try {
+            reader2.readAsText(file, 'shift-jis');
+          } catch (e3) {
+            status.innerHTML = '<span class="status error">' + (e && e.message ? e.message : 'CSVの解析に失敗しました。') + '</span>';
+          }
+        }
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    // --- DnD & ファイル選択 ---
+    const drop = document.getElementById('drop');
+    const fileInput = document.getElementById('file');
+    drop.addEventListener('dragover', (e)=>{ e.preventDefault(); drop.classList.add('dragover'); });
+    drop.addEventListener('dragleave', ()=> drop.classList.remove('dragover'));
+    drop.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      drop.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) readCSVFile(file);
+    });
+    fileInput.addEventListener('change', (e)=>{
+      const file = e.target.files[0];
+      if (file) readCSVFile(file);
+    });
+
+    // --- 入力イベント ---
+    document.getElementById('q').addEventListener('input', lookup);
+
+    // --- サンプルデータ（使い方確認用）---
+    document.getElementById('demoBtn').addEventListener('click', ()=>{
+      const sample = [
+        ['10進数','16進数','文字','ポケモン','わざ','どうぐ','マップ','プログラム','2byte命令(CBxx)'],
+        ['0','00','','','','','','NOP',''],
+        ['1','01','','','','','','LD BC,d16',''],
+        ['2','02','','','','','','LD (BC),A',''],
+        ['3','03','','','','','','INC BC','']
+      ];
+      const csv = sample.map(r => r.map(v => {
+        // CSVエスケープ
+        const s = String(v ?? '');
+        return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+      }).join(',')).join('\r\n');
+      try {
+        buildMappingFromCSV(csv);
+        render();
+        document.getElementById('status').innerHTML = '<span class="status ok">サンプルを読み込みました。CSVを書き出して本番データで置き換えてください。</span>';
+      } catch (e) {
+        document.getElementById('status').innerHTML = '<span class="status error">' + e.message + '</span>';
+      }
+    });
+  </script>
+</body>
+</html>
